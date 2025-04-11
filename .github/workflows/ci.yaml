@@ -1,0 +1,138 @@
+---
+name: CI checks
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: Source ref used to build bindings. Uses `github.ref`` by default.
+        required: false
+      sha:
+        description: Source SHA used to build bindings. Uses `github.sha`` by default.
+        required: false
+  push:
+    branches:
+    - main
+    paths:
+    - Cargo.toml
+    - Cargo.lock
+    - src/**
+    - tests/**
+    - .config/nextest.toml
+    - .github/workflows/ci.yaml
+    - .github/ci-tools.toml
+  pull_request:
+    paths:
+    - Cargo.toml
+    - Cargo.lock
+    - src/**
+    - tests/**
+    - .config/nextest.toml
+    - .github/workflows/ci.yaml
+    - .github/ci-tools.toml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+env:
+  COLOR: yes
+  FORCE_COLOR: 1
+  CARGO_TERM_COLOR: always
+  CARGO_TERM_PROGRESS_WHEN: never
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: 1
+  CARGO_NET_RETRY: 10
+  BINSTALL_DISABLE_TELEMETRY: true
+
+permissions: {}
+jobs:
+  ci-build:
+    name: Build and test
+
+    permissions:
+      contents: read
+
+    runs-on: ubuntu-24.04-arm
+    steps:
+    - name: Rust version
+      run: |
+        rustc --version
+        cargo --version
+
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.inputs.source || github.ref || github.event.ref }}
+
+    - name: Cache Cargo
+      uses: ./.github/actions/cache
+
+    - name: Install CLI tools
+      uses: ./.github/actions/install-tools
+      with:
+        default-datasource: crate
+
+    - name: Run tests
+      run: |
+        cargo llvm-cov --no-report nextest --tests --lib -P ci
+
+    - name: Collect coverage
+      if: ${{ (github.event_name == 'pull_request') && (success() || failure()) }}
+      run: |
+        cargo llvm-cov report --output-path target/lcov.info --ignore-filename-regex=src/lib.rs --lcov &
+        cargo llvm-cov report --output-path target/lcov.xml --ignore-filename-regex=src/lib.rs --cobertura &
+        wait $(jobs -p)
+
+    - name: Publish test results and coverage
+      if: ${{ (github.event_name == 'pull_request') && (success() || failure()) }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: target
+        path: |
+          target/lcov.info
+          target/lcov.xml
+          target/nextest/ci/junit.xml
+        compression-level: 9
+        retention-days: 1
+
+  report-test-results:
+    name: Report test results
+    permissions:
+      pull-requests: write  # Comment PR
+
+    needs: ci-build
+    if: ${{ (github.event_name == 'pull_request') && (success() || failure()) }}
+
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/download-artifact@v4
+
+    - name: Report test results
+      uses: mikepenz/action-junit-report@v5
+      with:
+        comment: true
+        include_passed: true
+        report_paths: |
+          ${{ github.workspace }}/target/nextest/ci/junit.xml
+        check_name: |
+          Deku String
+        annotate_only: true
+
+  report-coverage:
+    name: Report coverage
+    permissions:
+      pull-requests: write  # Comment PR
+      contents: read        # Read list of modified files
+
+    needs: ci-build
+    if: ${{ (github.event_name == 'pull_request') && (success() || failure()) }}
+
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/download-artifact@v4
+    - name: Publish coverage report
+      uses: orgoro/coverage@v3.2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        coverageFile: ${{ github.workspace }}/target/lcov.xml

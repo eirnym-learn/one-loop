@@ -1,0 +1,5 @@
+= Temporary project for CI tests only.
+
+Project has no value outside these tests. Results will be (not) used elsewhere.
+
+Move along.
