@@ -59,7 +59,8 @@ jobs:
       run: |
         rustc --version
         cargo --version
-        rustup toolchain --list
+        rustup --version
+        rustup toolchain list
         echo "rustc target: " $(rustc -vV | sed -nE 's/host: (.*)/\1/p')
 
     - name: Checkout repo
