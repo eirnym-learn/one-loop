@@ -104,7 +104,7 @@ jobs:
         rustc --version
         cargo --version
         rustup toolchain --list
-        echo -n "rustc target: " $(rustc -vV | sed -nE 's/host: (.*)/\1/p')
+        echo "rustc target: " $(rustc -vV | sed -nE 's/host: (.*)/\1/p')
         echo "requested target: ${{ matrix.target }}"
       shell: bash
 
