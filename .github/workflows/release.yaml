@@ -17,53 +17,6 @@ env:
   RUST_BACKTRACE: 1
   CARGO_NET_RETRY: 10
   BINSTALL_DISABLE_TELEMETRY: true
-
-jobs:
-  build-test:
-    permissions:
-      contents: read
-    if: ${{ github.ref == 'refs/heads/main' }}
-    name: Build and test
-    runs-on: ubuntu-latest
-    steps:
-    - name: Rust version
-      run: |
-        rustc --version
-        cargo --version
-
-    - name: Checkout repo
-      uses: actions/checkout@v4
-
-    - name: Cache Cargo
-      uses: ./.github/actions/cache
-
-    - name: Install CLI tools
-      uses: ./.github/actions/install-tools
-      with:
-        default-datasource: crate
-
-    - name: Run tests
-      run: |
-        cargo nextest run --tests --lib -P ci
----
-name: Release crate
-
-on:
-  workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: true
-
-env:
-  COLOR: yes
-  FORCE_COLOR: 1
-  CARGO_TERM_COLOR: always
-  CARGO_TERM_PROGRESS_WHEN: never
-  CARGO_INCREMENTAL: 0
-  RUST_BACKTRACE: 1
-  CARGO_NET_RETRY: 10
-  BINSTALL_DISABLE_TELEMETRY: true
   CARGO_NET_OFFLINE: true
 jobs:
   build-test:
