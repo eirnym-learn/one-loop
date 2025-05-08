@@ -3,6 +3,12 @@ name: Release crate
 
 on:
   workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Don't publish, just build and simulate artifact download
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
@@ -31,8 +37,12 @@ jobs:
         cargo --version
 
     - uses: actions/checkout@v4
+    - name: Install CLI tools
+      uses: ./.github/actions/install-tools
+      with:
+        default-datasource: crate
     - name: Build
-      run: cargo build
+      run: cargo nextest run
 
   build:
     needs: build-test
@@ -43,12 +53,12 @@ jobs:
         include:
         - target: aarch64-unknown-linux-gnu
           os: ubuntu-24.04-arm
-        # - target: x86_64-unknown-linux-gnu
-        #   os: ubuntu-latest
-        # - target: x86_64-pc-windows-msvc
-        #   os: windows-latest
-        # - target: universal-apple-darwin
-        #   os: macos-latest
+        - target: x86_64-unknown-linux-gnu
+          os: ubuntu-latest
+        - target: x86_64-pc-windows-msvc
+          os: windows-latest
+        - target: universal-apple-darwin
+          os: macos-latest
     runs-on: ${{ matrix.os }}
     steps:
     - name: Rust version
@@ -92,6 +102,7 @@ jobs:
         merge-multiple: true
         path: artifacts
     - name: Publish github
+      if: ${{ !inputs.dry-run }}
       run: |
         package_version=$(cargo metadata --format-version 1 --no-deps| jq -r '.packages[].version')
         gh release create "v${package_version}" --fail-on-no-commits --generate-notes  --latest artifacts/*
@@ -101,6 +112,7 @@ jobs:
   publish-cargo:
     runs-on: ubuntu-latest
     needs: publish-github
+    if: ${{ !inputs.dry-run }}
     permissions:
       contents: read
     steps:
