@@ -9,6 +9,9 @@ inputs:
     description: Cache key to use for target
     required: false
     default: cargo-target
+  target-part:
+    description: Target part for the cache. Rust target triple by default.
+    required: false
   additional_home:
     description: Additional rules for cargo home caching
     required: false
@@ -18,6 +21,14 @@ inputs:
 runs:
   using: composite
   steps:
+  - name: Set target part
+    run: |
+      if [[ -z "${{ inputs.target-part }}" ]]; then
+        rust_target=$(rustc -vV | sed -nE 's/host: (.*)/\1/p')
+      else
+        rust_target="${{ inputs.target-part }}"
+      fi
+      echo "RUST_TARGET=${rust_target}" >> $GITHUB_ENV
     # Cache the global cargo directory, but NOT the local `target` directory which
     # we cannot reuse anyway when the nightly changes (and it grows quite large
     # over time).
@@ -38,8 +49,7 @@ runs:
         ~/.cargo/.crates.toml
         ~/.cargo/.crates2.json
         ${{ inputs.additional_home }}
-      key: ${{ runner.os }}-${{ inputs.cache-key }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', '.github/ci-tools.toml', '.cargo/config.toml') }}
-      lookup-only: ${{ env.LOOKUP_CARGO_HOME }}
+      key: ${{ env.RUST_TARGET }}-${{ inputs.cache-key }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', '.github/ci-tools.toml', '.cargo/config.toml') }}
   - name: cache target
     uses: actions/cache@v4
     with:
@@ -51,5 +61,4 @@ runs:
         !target/package
         !target/tmp
         ${{ inputs.additional_target }}
-      key: ${{ runner.os }}-${{ inputs.cache-target-key }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', '.github/ci-tools.toml', '.cargo/config.toml') }}
-      lookup-only: ${{ env.LOOKUP_TARGET }}
+      key: ${{ env.RUST_TARGET }}-${{ inputs.cache-target-key }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', '.github/ci-tools.toml', '.cargo/config.toml') }}
