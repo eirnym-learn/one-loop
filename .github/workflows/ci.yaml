@@ -78,7 +78,7 @@ jobs:
 
     - name: Run tests
       run: |
-        cargo llvm-cov --no-report nextest --tests --lib -P ci
+        cargo llvm-cov --no-report nextest -P ci
 
     - name: Collect coverage
       if: ${{ (github.event_name == 'pull_request') && (success() || failure()) }}
