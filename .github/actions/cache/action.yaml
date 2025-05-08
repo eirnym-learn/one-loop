@@ -22,6 +22,7 @@ runs:
   using: composite
   steps:
   - name: Set target part
+    shell: bash
     run: |
       if [[ -z "${{ inputs.target-part }}" ]]; then
         rust_target=$(rustc -vV | sed -nE 's/host: (.*)/\1/p')
@@ -29,11 +30,13 @@ runs:
         rust_target="${{ inputs.target-part }}"
       fi
       echo "RUST_TARGET=${rust_target}" >> $GITHUB_ENV
+
     # Cache the global cargo directory, but NOT the local `target` directory which
     # we cannot reuse anyway when the nightly changes (and it grows quite large
     # over time).
 
     # It will be saved every time anyway, thus just use primary key only.
+    # Will be upgraded when 
 
   - name: Add cache for cargo
     id: cache
