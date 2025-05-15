@@ -1,3 +1,3 @@
 [tools]
-cargo-nextest = "0.9.95"
+cargo-nextest = "0.9.96"
 cargo-llvm-cov = "0.6.16"
